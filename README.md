@@ -78,8 +78,10 @@ This repository includes an example `environment.yml`
 
 You can specify your software environment by using all the [available configuration options of repo2docker](https://repo2docker.readthedocs.io/en/latest/config_files.html). (But please remember to use [aicrowd-repo2docker](https://pypi.org/project/aicrowd-repo2docker/) to have GPU support)
 
-# How can I connect my system to competition?
-You can use local_evaluation.py that in base the input will evaluate your system.
+# How can I connect my system to the environment and evaluate it?
+You can use local_evaluation.py to evaluate your system on your computer.
+As a default local_evaluation.py uses as the robot controller the one defined in my_controller.py. In this latter file you will find a random controller and also a reference to the Baseline algorithm.
+You can change the local evaluation parameters to change many parameters of the environment, such as the length of the intrinsic and extrinsic phase, the action type used by the controller or the number of objects in the environment.
 
 ## Evaluation function parameters
   - Controller: class  
@@ -136,7 +138,7 @@ It has also a step method that receives the current observation from the environ
 
 
 
-# How do I can use simplifications?
+# How can I use the simplifications?
 ## Actions space reduction:
   - 'macro_action': it allows to reduce the action space from the 9-dimensional joints space to a four-dimensional space, where the four values (x1,y1,x2,y2) represent a trajectory on the table that starts from (x1,y1) and ends to (x2,y2).
   - 'cartesian': it allows to reduce the action space from the joints space to a seven-dimensional space, where the seven values (x,y,z,o1,o2,o3,o4) represent the three-dimensional point in the space plus the gripper desidered orientation. 
@@ -180,7 +182,7 @@ The Baseline subfolder contains an implementation of a solution at the challenge
 
 This is used to map your submission to the said challenge, so please remember to use the correct `challenge_id` and `grader_id` as specified above.
 
-If you set `debug` to `true`, then the evaluation will run on a separate set of 20 environments, and the logs from your submitted code (if it fails), will be made available to you to help you debug.
+If you set `debug` to `true`, then the evaluation will run a reduced number of timesteps, and the logs from your submitted code (if it fails), will be made available to you to help you debug.
 **NOTE** : **IMPORTANT** : By default we have set `debug:true`, so when you have done the basic integration testing of your code, and are ready to make a final submission, please do make sure to set `debug` to `false` in `aicrowd.json`.
 
 - `my_controller.py`
