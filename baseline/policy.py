@@ -398,7 +398,7 @@ class Baseline(BasePolicy):
             Intrinsic phase.
 
     """
-    def __init__(self, action_space):
+    def __init__(self, action_space, observation_space):
         self.allActions = []
         self.state = ActionStart()
         State.caller = self
