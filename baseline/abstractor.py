@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Lambda, Input, Dense
 from tensorflow.keras.models import Model
 from tensorflow.keras.losses import mse, binary_crossentropy
 from tensorflow.keras import backend as K
+from tensorflow import keras
 import numpy as np
 import baseline.config as config
 import baseline.priorityQueue as pq
@@ -95,7 +96,7 @@ def abstractionFromPosNoQ(pos_dict):
     return abst_rounded
 
 
-class Abstractor():
+class VAEAbstractor():
     """
     This class uses a Variational Auto-Encoder (VAE) trained with the
     images given in input.
@@ -114,7 +115,7 @@ class Abstractor():
         decoder : function
             function mappping from the latent space to images
     """
-    def __init__(self, images, latent_dim):
+    def __init__(self, images, latent_dim, retrain=False):
 
         # reparameterization trick
         # instead of sampling from Q(z|X), sample epsilon = N(0,I)
@@ -144,68 +145,76 @@ class Abstractor():
 
         fl = images
 
-        x_train = fl[:int(np.floor(len(fl) * 0.80))]
-        x_test = fl[int(np.ceil(len(fl) * 0.80)):]
-        image_rows = x_train[0].shape[0]
-        image_columns = x_train[0].shape[1]
-        original_dim = image_rows * image_columns
-        x_train = np.reshape(x_train, [-1, original_dim])
-        x_test = np.reshape(x_test, [-1, original_dim])
-
-        input_shape = (original_dim, )
-        intermediate_dim = 512
-        batch_size = 128
-        epochs = 30
-
-        # VAE model = encoder + decoder
-        # build encoder model
-        inputs = Input(shape=input_shape, name='encoder_input')
-        x = Dense(intermediate_dim, activation='relu')(inputs)
-        z_mean = Dense(latent_dim, name='z_mean')(x)
-        z_log_var = Dense(latent_dim, name='z_log_var')(x)
-
-        # use reparameterization trick to push the sampling out as input
-        # note that "output_shape" isn't necessary with the TensorFlow backend
-        z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
-
-        # instantiate encoder model
-        self.encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
-        self.encoder.summary()
-
-        # build decoder model
-        latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-        x = Dense(intermediate_dim, activation='relu')(latent_inputs)
-        outputs = Dense(original_dim, activation='sigmoid')(x)
-
-        # instantiate decoder model
-        self.decoder = Model(latent_inputs, outputs, name='decoder')
-        self.decoder.summary()
-
-        # instantiate VAE model
-        outputs = self.decoder(self.encoder(inputs)[2])
-        vae = Model(inputs, outputs, name='vae_mlp')
-
-        # VAE loss = mse_loss or xent_loss + kl_loss
-        if False:
-            reconstruction_loss = mse(inputs, outputs)
+        if config.abst['pre_trained_vae'] and not retrain:
+            # load a pre-trained auto-encoder
+            self.encoder = keras.models.load_model('trained_encoder')
+            self.decoder = keras.models.load_model('trained_decoder')
         else:
-            reconstruction_loss = binary_crossentropy(inputs,
-                                                      outputs)
+            x_train = fl[:int(np.floor(len(fl) * 0.80))]
+            x_test = fl[int(np.ceil(len(fl) * 0.80)):]
+            image_rows = x_train[0].shape[0]
+            image_columns = x_train[0].shape[1]
+            original_dim = image_rows * image_columns
+            x_train = np.reshape(x_train, [-1, original_dim])
+            x_test = np.reshape(x_test, [-1, original_dim])
 
-        reconstruction_loss *= original_dim
-        kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
-        kl_loss = K.sum(kl_loss, axis=-1)
-        kl_loss *= -0.5
-        vae_loss = K.mean(reconstruction_loss + kl_loss)
-        vae.add_loss(vae_loss)
-        vae.compile(optimizer='adam')
-        vae.summary()
+            input_shape = (original_dim, )
+            intermediate_dim = 512
+            batch_size = 128
+            epochs = 30
 
-        # train the autoencoder
-        vae.fit(x_train,
-                epochs=epochs,
-                batch_size=batch_size,
-                validation_data=(x_test, None))
+            # VAE model = encoder + decoder
+            # build encoder model
+            inputs = Input(shape=input_shape, name='encoder_input')
+            x = Dense(intermediate_dim, activation='relu')(inputs)
+            z_mean = Dense(latent_dim, name='z_mean')(x)
+            z_log_var = Dense(latent_dim, name='z_log_var')(x)
+
+            # use reparameterization trick to push the sampling out as input
+            # note that "output_shape" isn't necessary with the TensorFlow backend
+            z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+
+            # instantiate encoder model
+            self.encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+            self.encoder.summary()
+
+            # build decoder model
+            latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
+            x = Dense(intermediate_dim, activation='relu')(latent_inputs)
+            outputs = Dense(original_dim, activation='sigmoid')(x)
+
+            # instantiate decoder model
+            self.decoder = Model(latent_inputs, outputs, name='decoder')
+            self.decoder.summary()
+
+            # instantiate VAE model
+            outputs = self.decoder(self.encoder(inputs)[2])
+            vae = Model(inputs, outputs, name='vae_mlp')
+
+            # VAE loss = mse_loss or xent_loss + kl_loss
+            if False:
+                reconstruction_loss = mse(inputs, outputs)
+            else:
+                reconstruction_loss = binary_crossentropy(inputs,
+                                                          outputs)
+
+            reconstruction_loss *= original_dim
+            kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+            kl_loss = K.sum(kl_loss, axis=-1)
+            kl_loss *= -0.5
+            vae_loss = K.mean(reconstruction_loss + kl_loss)
+            vae.add_loss(vae_loss)
+            vae.compile(optimizer='adam')
+            vae.summary()
+
+            # train the autoencoder
+            vae.fit(x_train,
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    validation_data=(x_test, None))
+
+            self.encoder.save('trained_encoder')
+            self.decoder.save('trained_decoder')
 
     def get_encoder(self):
         return self.encoder
@@ -264,57 +273,33 @@ class DynamicAbstractor():
             print("Each condition has to be a numpy.ndarray")
             return None
 
-        if config.abst['type'] == 'filtered_mask':
-            masks = [actions[i][2] for i in range(len(actions))]
-            ab = Abstractor(masks, latent_dim=7 * config.abst['n_obj'])
-            self.encoder = ab.get_encoder()
+        images = [actions[i][2] for i in range(len(actions))]
+        print("Total images {} for VAE and BS".format(len(images)))
 
-            self.actions = []
-            n_cells = len(actions[0][0]) * len(actions[0][0][0])
-            post = np.array(self.encoder.predict(np.reshape(actions[0][0],
-                                                 [-1, n_cells]))[0][0])
+        cbsm = cv2.createBackgroundSubtractorMOG2(len(images))
+        for i in range(len(images)):
+            cbsm.apply(images[i])
 
-            reshaping = np.reshape(masks, [len(masks),
-                                           len(masks[0]) * len(masks[0][0])])
-            predictions = self.encoder.predict(reshaping)
+        self.background = cbsm.getBackgroundImage()
+        images = np.average(abs(images - self.background), axis=3) != 0
 
-            for i in range(len(actions)):
-                pre = post
-                post = np.array(predictions[0][i])
-                self.actions += [np.array([pre, actions[i][1], post])]
+        ab = VAEAbstractor(images, latent_dim=7 * config.abst['n_obj'])
+        self.encoder = ab.get_encoder()
+        self.decoder = ab.get_decoder()
 
-            print(self.actions[0])
+        self.actions = []
+        n_cells = len(actions[0][0]) * len(actions[0][0][0])
 
-        elif config.abst['type'] == 'image':
-            images = [actions[i][2] for i in range(len(actions))]
-            print("Total images {} for VAE and BS".format(len(images)))
+        post = np.array(self.encoder.predict(np.reshape(np.average(abs(actions[0][0] - self.background), axis=2) != 0, [-1, n_cells]))[0][0])
 
-            cbsm = cv2.createBackgroundSubtractorMOG2(len(images))
-            for i in range(len(images)):
-                cbsm.apply(images[i])
+        reshaping = np.reshape(images, [len(images), len(images[0]) * len(images[0][0])])
+        predictions = self.encoder.predict(reshaping)
 
-            self.background = cbsm.getBackgroundImage()
-            images = np.average(abs(images - self.background), axis=3) != 0
-
-            ab = Abstractor(images, latent_dim=7 * config.abst['n_obj'])
-            self.encoder = ab.get_encoder()
-
-            self.actions = []
-            n_cells = len(actions[0][0]) * len(actions[0][0][0])
-
-            post = np.array(self.encoder.predict(np.reshape(np.average(abs(actions[0][0] - self.background), axis=2) != 0, [-1, n_cells]))[0][0])
-
-            reshaping = np.reshape(images, [len(images), len(images[0]) * len(images[0][0])])
-            predictions = self.encoder.predict(reshaping)
-
-            for i in range(len(actions)):
-                pre = post
-                post = np.array(predictions[0][i])
-                self.actions += [np.array([pre, actions[i][1], post])]
-            print(self.actions[0])
-
-        else:
-            self.actions = actions
+        for i in range(len(actions)):
+            pre = post
+            post = np.array(predictions[0][i])
+            self.actions += [np.array([pre, actions[i][1], post])]
+        print(self.actions[0])
 
         self.dictionary_abstract_actions = {}
 

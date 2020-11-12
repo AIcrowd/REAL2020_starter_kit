@@ -141,7 +141,20 @@ It has also a step method that receives the current observation from the environ
 # How can I use the simplifications?
 ## Actions space reduction:
   - 'macro_action': it allows to reduce the action space from the 9-dimensional joints space to a four-dimensional space, where the four values (x1,y1,x2,y2) represent a trajectory on the table that starts from (x1,y1) and ends to (x2,y2).
-  - 'cartesian': it allows to reduce the action space from the joints space to a seven-dimensional space, where the seven values (x,y,z,o1,o2,o3,o4) represent the three-dimensional point in the space plus the gripper desidered orientation. 
+  - 'cartesian': it allows to move the arm in a seven-dimensional space, where the seven values (x,y,z,o1,o2,o3,o4) represent the three-dimensional point in the space plus the gripper desidered orientation. When sending the action to the environment, the action is composed by a 'cartesian_command' with those seven values plus a 'gripper_command' to use the two gripper joints (opening/closing the gripper)..
+  
+## Gripper closed:
+  - when using joints control, keep the last two joints to 0.
+  - when using cartesian control, send 'gripper_command' with both joints to 0.
+  - when using the macro_action control, the gripper is always closed.
+
+## Fixed wrist:
+  - when using joints control, this simplification is not available.
+  - when using cartesian control, the desired orientation can be fixed to [&radic;2/2, &radic;2/2, 0, 0] 
+```python
+fixedOrientation = [2**(0.5)/2, 2**(0.5)/2, 0, 0]
+```
+  - when using the macro_action control, the wrist is fixed downwards by default.  
   
 ## Abstraction simplifications contained in the observations:
   - coordinates: it allows to reduce from the image space (320x240x3) to a seven-dimensional space, where the seven points (x,y,z,o1,o2,o3,o4) represent the physics three dimensional space and the other points represent the object orientation.

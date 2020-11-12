@@ -93,7 +93,7 @@ class Planner():
         if alg == 'mega':
             if not np.all(self.last_goal == goal):
                 self.last_goal = goal
-                self.plan_size = int(np.floor(config.sim['extrinsic_steps'] / config.plan['action_size']))
+                self.plan_size = int(np.floor(config.sim['extrinsic_steps'] / config.exp['action_size']))
             else:
                 self.plan_size -= 1
 

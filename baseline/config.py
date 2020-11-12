@@ -28,6 +28,6 @@ def load(configFile):
         sim = cfg['simulation']
         abst = cfg['abstraction']
         plan = cfg['planner']
-
+        exp = cfg['exploration']
 
 load("baseline/config.yaml")
