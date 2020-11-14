@@ -6,3 +6,5 @@ gcc
 g++
 ffmpeg
 xvfb
+make
+libglib2.0-0
