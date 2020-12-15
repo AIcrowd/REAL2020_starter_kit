@@ -79,7 +79,7 @@ class DoAction(State):
         self.actionTimer += 1
         if self.actionTimer < self.n_timesteps:
             render = self.actionTimer == (self.n_timesteps - 1)
-            if config.exp['action_parts_max'] > 1:
+            if config.exp['action_parts_max'] > 1 and self.action is not None:
                 current_action = self.action[self.actionTimer - 1]
             else:
                 current_action = self.action
@@ -414,7 +414,10 @@ class Baseline(BasePolicy):
                 name of the file
 
         """
-        np.save(fileName, self.allActions)
+        if config.sim['compressed_data']:
+            np.savez_compressed(fileName, self.allActions)
+        else:
+            np.save(fileName, self.allActions)
 
     def step(self, observation, reward, done):
         """
@@ -492,8 +495,24 @@ class Baseline(BasePolicy):
         allActions = self.allActions
 
         if config.sim['use_experience_data']:
-            allActions = np.load(config.sim['experience_data'],
-                                 allow_pickle=True)
+            if config.sim['compressed_data']:
+                allActions = np.load(config.sim['experience_data'],
+                                     allow_pickle=True)['arr_0']
+            else:
+                allActions = np.load(config.sim['experience_data'],
+                                     allow_pickle=True)
+
+
+        # filter actions where the arm did not go back home
+        firstRow = allActions[0][0][0][0,:]
+
+        def validAction(action):
+            ok_pre = np.all(action[0][0][0, :] == firstRow)
+            ok_post = np.all(action[2][0][0, :] == firstRow)
+            return ok_pre and ok_post
+
+        allActions = [action for action in allActions if validAction(action)]
+
 
         allAbstractedActions = [[currentAbstraction(a[0]), a[1],
                                  currentAbstraction(a[2])]

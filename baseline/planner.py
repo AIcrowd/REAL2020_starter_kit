@@ -107,11 +107,11 @@ class Planner():
                 plt.savefig("planning_situation")
 
             elif config.abst['type'] == 'image':
-                abstr_goal = np.average(self.abstractor.background_subtractor(goal), axis=2) != 0
-                abstr_start = np.average(self.abstractor.background_subtractor(start), axis=2) != 0
+                fore_goal = self.abstractor.background_subtractor(goal)
+                fore_start = self.abstractor.background_subtractor(start)
 
-                abstr_goal = self.abstractor.get_encoder().predict(np.reshape(abstr_goal, [-1, len(goal) * len(goal[0])]))[0][0]
-                abstr_start = self.abstractor.get_encoder().predict(np.reshape(abstr_start, [-1, len(start) * len(start[0])]))[0][0]
+                abstr_goal = self.abstractor.get_encoder().predict(np.reshape(fore_goal, [-1, len(goal) * len(goal[0])]))[0][0]
+                abstr_start = self.abstractor.get_encoder().predict(np.reshape(fore_start, [-1, len(start) * len(start[0])]))[0][0]
 
                 self.axes[0].imshow(start)
                 self.axes[1].imshow(goal)
@@ -188,7 +188,7 @@ class Planner():
         # checks whether the current condition is the same as the
         # desired condition in the current abstraction
         if np.all(abs(goal_image - current) <= abstraction_dists):
-            return None
+            return [[None, None, None]]
 
         # Initialize two priority queues. The first for nodes with a sequence less than the allowed depth, the second for nodes blocked due to having exceeded the depth limit
         # This allows you to restore the search tree in the event that a solution with depth less than that allowed is not found

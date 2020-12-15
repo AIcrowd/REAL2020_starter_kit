@@ -15,6 +15,7 @@ exploration:
   home_duration: 150
 simulation:
   experience_data: data/transitions_file.npy
+  compressed_data: true
   extrinsic_steps: 10000
   save_images: true
   save_masks: false

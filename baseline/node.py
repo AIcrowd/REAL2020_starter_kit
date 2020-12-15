@@ -1,7 +1,7 @@
 class Node(object):
     def __init__(self, attribute, value=None, cost=None, father=None):
         self.childs = []
-        self.attribute = attribute
+        self.attribute = int(attribute)
         self.father = father
         self.value = value
         self.cost = cost
@@ -49,14 +49,19 @@ class Node(object):
 
     def __eq__(self, node):
         if not isinstance(node, Node):
-            print("Node: two different classes are comparing")
+            print("Node: comparing two different classes")
             print("Wrong input: {}".format(str(node)))
-
             return None
 
         if node.get_attribute() == self.get_attribute():
             return True
         return False
 
+    def __hash__(self):
+        return self.get_attribute()
+
     def __ne__(self, node):
         return not node == self
+
+    def __lt__(self, node):
+        return self.get_value_plus_cost() < node.get_value_plus_cost()
